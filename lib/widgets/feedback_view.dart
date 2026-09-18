@@ -56,7 +56,7 @@ class FeedbackView extends StatelessWidget {
           const SizedBox(height: 14),
           FadeSlideIn(
             index: 1,
-            child: _BloqueLista(
+            child: BloqueLista(
               titulo: 'Fortalezas',
               icono: Icons.check_circle_outline_rounded,
               color: RumboColors.success,
@@ -68,7 +68,7 @@ class FeedbackView extends StatelessWidget {
           const SizedBox(height: 14),
           FadeSlideIn(
             index: 2,
-            child: _BloqueLista(
+            child: BloqueLista(
               titulo: 'A mejorar',
               icono: Icons.trending_up_rounded,
               color: RumboColors.warning,
@@ -105,13 +105,16 @@ class FeedbackView extends StatelessWidget {
   }
 }
 
-class _BloqueLista extends StatelessWidget {
+/// Lista con viñetas coloreadas (título + contador + items). La reusan el
+/// feedback de CV/entrevista y la comparación de versiones del CV.
+class BloqueLista extends StatelessWidget {
   final String titulo;
   final IconData icono;
   final Color color;
   final List<String> items;
 
-  const _BloqueLista({
+  const BloqueLista({
+    super.key,
     required this.titulo,
     required this.icono,
     required this.color,

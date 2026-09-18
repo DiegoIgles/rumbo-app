@@ -328,6 +328,18 @@ class ApiClient {
     );
   }
 
+  /// Compara la última versión del CV con la anterior (mismo modo). Devuelve
+  /// hayComparacion=false si todavía no hay una versión previa contra la cual
+  /// comparar.
+  Future<ComparacionCv> comparacionCv(String modo) {
+    return _request(
+      'GET',
+      '/cv/comparacion',
+      query: {'modo': modo},
+      parse: (json) => ComparacionCv.fromJson(json as Map<String, dynamic>),
+    );
+  }
+
   // ---------- Práctica de entrevistas ----------
   Future<({String sessionId, String mensajeInicial})> interviewStart({
     required String modo,

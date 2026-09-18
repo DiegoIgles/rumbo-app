@@ -26,6 +26,10 @@ class _CvScreenState extends State<CvScreen> {
   String? _error;
   CvReview? _resultado;
 
+  ComparacionCv? _comparacion;
+  bool _cargandoComparacion = false;
+  String? _errorComparacion;
+
   @override
   void initState() {
     super.initState();
@@ -85,7 +89,12 @@ class _CvScreenState extends State<CvScreen> {
             )
           : await api.reviewCv(modo: _modo, texto: _textoCtrl.text.trim());
       if (!mounted) return;
-      setState(() => _resultado = review);
+      setState(() {
+        _resultado = review;
+        // La comparacion anterior quedo obsoleta: ahora hay una version nueva.
+        _comparacion = null;
+        _errorComparacion = null;
+      });
       // Lleva la vista al feedback: si no, el resultado queda fuera de pantalla
       // debajo del formulario y parece que no pasó nada.
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -103,6 +112,25 @@ class _CvScreenState extends State<CvScreen> {
       if (mounted) setState(() => _error = 'No se pudo revisar tu CV');
     } finally {
       if (mounted) setState(() => _enviando = false);
+    }
+  }
+
+  Future<void> _verComparacion() async {
+    final api = context.read<AuthController>().api;
+    setState(() {
+      _cargandoComparacion = true;
+      _errorComparacion = null;
+    });
+    try {
+      final comp = await api.comparacionCv(_modo);
+      if (!mounted) return;
+      setState(() => _comparacion = comp);
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _errorComparacion = e.message);
+    } catch (_) {
+      if (mounted) setState(() => _errorComparacion = 'No se pudo cargar la comparación');
+    } finally {
+      if (mounted) setState(() => _cargandoComparacion = false);
     }
   }
 
@@ -139,7 +167,12 @@ class _CvScreenState extends State<CvScreen> {
                 ],
                 selected: {_modo},
                 showSelectedIcon: false,
-                onSelectionChanged: (s) => setState(() => _modo = s.first),
+                onSelectionChanged: (s) => setState(() {
+                  _modo = s.first;
+                  // La comparacion es por modo: al cambiar, la anterior ya no aplica.
+                  _comparacion = null;
+                  _errorComparacion = null;
+                }),
               ),
             ),
             const SizedBox(height: 22),
@@ -192,10 +225,138 @@ class _CvScreenState extends State<CvScreen> {
               const SectionTitle('Resultado'),
               const SizedBox(height: 14),
               FeedbackView(feedback: _resultado!.feedback, titulo: 'Lo que notó la IA'),
+              const SizedBox(height: 32),
+              _buildComparacion(context),
             ],
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildComparacion(BuildContext context) {
+    final comp = _comparacion;
+
+    // Todavia no se pidio: boton para cargarla.
+    if (comp == null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SectionTitle('Comparar con tu versión anterior'),
+          const SizedBox(height: 6),
+          const Text(
+            'Mirá qué mejoraste respecto a la última vez que revisaste tu CV en este modo.',
+            style: TextStyle(color: RumboColors.textLow, fontSize: 13),
+          ),
+          const SizedBox(height: 14),
+          if (_errorComparacion != null) ...[
+            InfoBanner(mensaje: _errorComparacion!),
+            const SizedBox(height: 14),
+          ],
+          LoadingButton(
+            texto: 'Ver qué mejoré',
+            textoCargando: 'Comparando...',
+            cargando: _cargandoComparacion,
+            onPressed: _verComparacion,
+            icono: Icons.compare_arrows_rounded,
+          ),
+        ],
+      );
+    }
+
+    // Cargada pero sin version anterior contra la cual comparar.
+    if (!comp.hayComparacion) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SectionTitle('Comparar con tu versión anterior'),
+          const SizedBox(height: 14),
+          InfoBanner(
+            mensaje: comp.mensaje ?? 'Todavía no hay una versión anterior para comparar.',
+          ),
+        ],
+      );
+    }
+
+    // Comparacion disponible.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SectionTitle('Qué mejoraste'),
+        const SizedBox(height: 14),
+        if ((comp.resumen ?? '').isNotEmpty)
+          RumboCard(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    gradient: RumboColors.brandGradient,
+                    borderRadius: BorderRadius.circular(RumboRadii.sm),
+                  ),
+                  child: const Icon(Icons.trending_up_rounded, color: Colors.white, size: 17),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    comp.resumen!,
+                    style: const TextStyle(color: RumboColors.textMid, fontSize: 14.5, height: 1.6),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        if (comp.mejoras.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          BloqueLista(
+            titulo: 'Mejoraste',
+            icono: Icons.check_circle_outline_rounded,
+            color: RumboColors.success,
+            items: comp.mejoras,
+          ),
+        ],
+        if (comp.pendientes.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          BloqueLista(
+            titulo: 'Sigue pendiente',
+            icono: Icons.pending_outlined,
+            color: RumboColors.warning,
+            items: comp.pendientes,
+          ),
+        ],
+        if (comp.nuevasSugerencias.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          BloqueLista(
+            titulo: 'Nuevas sugerencias',
+            icono: Icons.lightbulb_outline_rounded,
+            color: RumboColors.navyBright,
+            items: comp.nuevasSugerencias,
+          ),
+        ],
+        if ((comp.notaIa ?? '').isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.info_outline_rounded, size: 13, color: RumboColors.textLow),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  comp.notaIa!,
+                  style: const TextStyle(
+                    color: RumboColors.textLow,
+                    fontSize: 11.5,
+                    fontStyle: FontStyle.italic,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
     );
   }
 

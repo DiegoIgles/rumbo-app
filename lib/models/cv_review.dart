@@ -33,3 +33,46 @@ class CvReview {
     );
   }
 }
+
+/// Comparacion entre la version mas reciente del CV y la anterior (mismo modo).
+/// [hayComparacion] es false cuando el usuario todavia no tiene una version
+/// anterior contra la que comparar; en ese caso solo viene [mensaje].
+class ComparacionCv {
+  final bool hayComparacion;
+  final String? mensaje;
+  final String? fechaAnterior;
+  final String? fechaActual;
+  final String? resumen;
+  final List<String> mejoras;
+  final List<String> pendientes;
+  final List<String> nuevasSugerencias;
+  final String? notaIa;
+
+  ComparacionCv({
+    required this.hayComparacion,
+    this.mensaje,
+    this.fechaAnterior,
+    this.fechaActual,
+    this.resumen,
+    this.mejoras = const [],
+    this.pendientes = const [],
+    this.nuevasSugerencias = const [],
+    this.notaIa,
+  });
+
+  factory ComparacionCv.fromJson(Map<String, dynamic> json) {
+    List<String> lista(String clave) =>
+        (json[clave] as List? ?? []).map((e) => e.toString()).toList();
+    return ComparacionCv(
+      hayComparacion: json['hay_comparacion'] as bool? ?? false,
+      mensaje: json['mensaje'] as String?,
+      fechaAnterior: json['fecha_anterior'] as String?,
+      fechaActual: json['fecha_actual'] as String?,
+      resumen: json['resumen'] as String?,
+      mejoras: lista('mejoras'),
+      pendientes: lista('pendientes'),
+      nuevasSugerencias: lista('nuevas_sugerencias'),
+      notaIa: json['nota_ia'] as String?,
+    );
+  }
+}
