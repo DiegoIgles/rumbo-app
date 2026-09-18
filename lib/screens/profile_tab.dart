@@ -11,6 +11,7 @@ import '../theme.dart';
 import '../utils/formato.dart';
 import '../widgets/server_sheet.dart';
 import '../widgets/ui_kit.dart';
+import 'cv_screen.dart';
 import 'experiencia_form_screen.dart';
 
 class ProfileTab extends StatefulWidget {
@@ -286,12 +287,41 @@ class ProfileTabState extends State<ProfileTab> {
                     ),
                   ),
                   const SizedBox(height: 36),
-                  FadeSlideIn(index: 7, child: _buildExperienciaSection(context)),
+                  FadeSlideIn(index: 7, child: _buildCv(context)),
                   const SizedBox(height: 32),
-                  FadeSlideIn(index: 8, child: _buildAjustes(context)),
+                  FadeSlideIn(index: 8, child: _buildExperienciaSection(context)),
+                  const SizedBox(height: 32),
+                  FadeSlideIn(index: 9, child: _buildAjustes(context)),
                 ],
               ),
       ),
+    );
+  }
+
+  Widget _buildCv(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionTitle('Currículum (CV)'),
+        const SizedBox(height: 4),
+        const Text(
+          'Subí tu CV en PDF o Word (.docx) y recibí feedback con IA al instante.',
+          style: TextStyle(color: RumboColors.textLow, fontSize: 13),
+        ),
+        const SizedBox(height: 14),
+        RumboCard(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          child: ListTile(
+            leading: const Icon(Icons.upload_file_rounded),
+            title: const Text('Subir CV'),
+            subtitle: const Text('PDF o Word (.docx)'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => Navigator.of(context).push(
+              RumboPageRoute(builder: (_) => const CvScreen()),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

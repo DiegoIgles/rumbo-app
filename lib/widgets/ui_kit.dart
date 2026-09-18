@@ -661,9 +661,13 @@ class RumboTag extends StatelessWidget {
             Icon(icono, size: 12, color: color),
             const SizedBox(width: 5),
           ],
-          Text(
-            texto,
-            style: TextStyle(color: color, fontSize: 11.5, fontWeight: FontWeight.w700),
+          Flexible(
+            child: Text(
+              texto,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: color, fontSize: 11.5, fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),
