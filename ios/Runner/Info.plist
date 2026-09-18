@@ -26,6 +26,12 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Rumbo usa la cámara para mostrarte en vivo mientras practicás una entrevista simulada. No se graba ni se guarda ningún video.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Rumbo usa el micrófono para que puedas responder por voz durante la práctica de entrevistas.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Rumbo transcribe lo que decís durante la práctica de entrevistas para poder mostrarlo como texto.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
