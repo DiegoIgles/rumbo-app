@@ -49,30 +49,40 @@ class _HomeShellState extends State<HomeShell> {
         index: _index,
         children: [
           for (var i = 0; i < builders.length; i++)
-            _visitadas.contains(i) ? builders[i](context) : const SizedBox.shrink(),
+            _visitadas.contains(i)
+                ? builders[i](context)
+                : const SizedBox.shrink(),
         ],
       ),
-      bottomNavigationBar: _RumboNavBar(
+      bottomNavigationBar: RumboNavBar(
         index: _index,
         onSeleccionar: _seleccionar,
         items: const [
-          _NavItem(Icons.home_outlined, Icons.home_rounded, 'Inicio'),
-          _NavItem(Icons.work_outline, Icons.work_rounded, 'Vacantes'),
-          _NavItem(Icons.auto_awesome_outlined, Icons.auto_awesome, 'Para vos'),
-          _NavItem(Icons.rocket_launch_outlined, Icons.rocket_launch, 'Crecimiento'),
-          _NavItem(Icons.person_outline, Icons.person_rounded, 'Perfil'),
+          RumboNavItem(Icons.home_outlined, Icons.home_rounded, 'Inicio'),
+          RumboNavItem(Icons.work_outline, Icons.work_rounded, 'Vacantes'),
+          RumboNavItem(
+            Icons.auto_awesome_outlined,
+            Icons.auto_awesome,
+            'Para vos',
+          ),
+          RumboNavItem(
+            Icons.rocket_launch_outlined,
+            Icons.rocket_launch,
+            'Crecimiento',
+          ),
+          RumboNavItem(Icons.person_outline, Icons.person_rounded, 'Perfil'),
         ],
       ),
     );
   }
 }
 
-class _NavItem {
+class RumboNavItem {
   final IconData icono;
   final IconData iconoActivo;
   final String etiqueta;
 
-  const _NavItem(this.icono, this.iconoActivo, this.etiqueta);
+  const RumboNavItem(this.icono, this.iconoActivo, this.etiqueta);
 }
 
 /// Barra inferior propia en vez de NavigationBar de Material.
@@ -81,36 +91,55 @@ class _NavItem {
 /// vez, y con cinco destinos en pantallas angostas las etiquetas se cortan.
 /// Acá la etiqueta aparece solo en la pestaña activa, que además se expande en
 /// una píldora: entra cómodo en cualquier ancho y da el feedback de selección.
-class _RumboNavBar extends StatelessWidget {
+class RumboNavBar extends StatelessWidget {
   final int index;
   final ValueChanged<int> onSeleccionar;
-  final List<_NavItem> items;
+  final List<RumboNavItem> items;
 
-  const _RumboNavBar({required this.index, required this.onSeleccionar, required this.items});
+  const RumboNavBar({
+    super.key,
+    required this.index,
+    required this.onSeleccionar,
+    required this.items,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
+      // Opaca a propósito: con extendBody el contenido pasa por detrás, y una
+      // barra traslúcida sin desenfoque deja ver el texto de las tarjetas
+      // debajo, que se lee como un defecto y no como un efecto.
       decoration: const BoxDecoration(
-        color: Color(0xF21F1F1F),
+        color: RumboColors.ink,
         border: Border(top: BorderSide(color: RumboColors.outlineSoft)),
       ),
       child: SafeArea(
         top: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              for (var i = 0; i < items.length; i++)
-                Flexible(
-                  child: _NavBoton(
-                    item: items[i],
-                    activo: i == index,
-                    onTap: () => onSeleccionar(i),
+        // Altura fija a propósito. Todo lo que hay dentro (Center, Align)
+        // se expande a la altura que le den, y en el slot de
+        // bottomNavigationBar esa altura es la de la pantalla entera: sin este
+        // límite la barra se comía toda la ventana y aplastaba el contenido.
+        child: SizedBox(
+          height: 60,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: Row(
+              children: [
+                // Expanded reparte el ancho en cinco porciones iguales y Center
+                // deja que la píldora crezca solo dentro de la suya: sin esto, la
+                // pestaña de etiqueta más larga se montaba sobre la de al lado.
+                for (var i = 0; i < items.length; i++)
+                  Expanded(
+                    child: Center(
+                      child: _NavBoton(
+                        item: items[i],
+                        activo: i == index,
+                        onTap: () => onSeleccionar(i),
+                      ),
+                    ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -119,11 +148,15 @@ class _RumboNavBar extends StatelessWidget {
 }
 
 class _NavBoton extends StatelessWidget {
-  final _NavItem item;
+  final RumboNavItem item;
   final bool activo;
   final VoidCallback onTap;
 
-  const _NavBoton({required this.item, required this.activo, required this.onTap});
+  const _NavBoton({
+    required this.item,
+    required this.activo,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -133,7 +166,10 @@ class _NavBoton extends StatelessWidget {
       child: AnimatedContainer(
         duration: RumboMotion.medium,
         curve: RumboMotion.emphasized,
-        padding: EdgeInsets.symmetric(horizontal: activo ? 14 : 10, vertical: 9),
+        padding: EdgeInsets.symmetric(
+          horizontal: activo ? 14 : 10,
+          vertical: 9,
+        ),
         decoration: BoxDecoration(
           color: activo ? RumboColors.crimson : Colors.transparent,
           borderRadius: RumboRadii.pill,
@@ -152,24 +188,34 @@ class _NavBoton extends StatelessWidget {
             ),
             // La etiqueta crece de 0 a su ancho natural en vez de aparecer de
             // golpe, así el resto de las pestañas se corren con suavidad.
-            ClipRect(
-              child: AnimatedAlign(
-                duration: RumboMotion.medium,
-                curve: RumboMotion.emphasized,
-                alignment: Alignment.centerLeft,
-                widthFactor: activo ? 1 : 0,
-                child: AnimatedOpacity(
-                  duration: RumboMotion.fast,
-                  opacity: activo ? 1 : 0,
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 8),
-                    child: Text(
-                      item.etiqueta,
-                      maxLines: 1,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
+            // Flexible la deja encogerse si la porción es angosta (pantallas
+            // chicas o traducciones largas) en vez de desbordar la fila.
+            Flexible(
+              child: ClipRect(
+                child: AnimatedAlign(
+                  duration: RumboMotion.medium,
+                  curve: RumboMotion.emphasized,
+                  alignment: Alignment.centerLeft,
+                  widthFactor: activo ? 1 : 0,
+                  // heightFactor es obligatorio: un Align al que solo se le da
+                  // widthFactor se estira a TODA la altura disponible, lo que
+                  // inflaba la píldora hasta cubrir la pantalla entera.
+                  heightFactor: 1,
+                  child: AnimatedOpacity(
+                    duration: RumboMotion.fast,
+                    opacity: activo ? 1 : 0,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: Text(
+                        item.etiqueta,
+                        maxLines: 1,
+                        softWrap: false,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ),

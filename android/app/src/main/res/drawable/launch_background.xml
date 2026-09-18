@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Modify this file to customize your launch splash screen -->
+<!--
+  Fondo de la ventana mientras arranca el proceso, antes de que Flutter dibuje
+  su primer frame. Va en #1F1F1F (la tinta de la marca) y no en blanco: la app
+  es oscura, y el blanco por defecto producia un destello al abrirla.
+  El color va inline a proposito, para que no dependa de colors.xml, que lo
+  regenera flutter_launcher_icons.
+-->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@android:color/white" />
-
-    <!-- You can insert your own image assets here -->
-    <!-- <item>
-        <bitmap
-            android:gravity="center"
-            android:src="@mipmap/launch_image" />
-    </item> -->
+    <item>
+        <color android:color="#FF1F1F1F" />
+    </item>
 </layer-list>
