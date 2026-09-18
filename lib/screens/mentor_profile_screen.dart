@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../app_constants.dart';
 import '../services/api_client.dart';
 import '../services/auth_controller.dart';
+import '../theme.dart';
+import '../widgets/ui_kit.dart';
 
 class MentorProfileScreen extends StatefulWidget {
   const MentorProfileScreen({super.key});
@@ -15,7 +17,7 @@ class MentorProfileScreen extends StatefulWidget {
 class _MentorProfileScreenState extends State<MentorProfileScreen> {
   final _bioCtrl = TextEditingController();
   final _disponibilidadCtrl = TextEditingController();
-  String _areaExpertise = areas[0];
+  String _areaExpertise = areas.first;
   bool _loading = true;
   bool _guardando = false;
   String? _error;
@@ -42,38 +44,51 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
     try {
       final auth = context.read<AuthController>();
       final todos = await auth.api.mentores();
-      final propio = todos.where((m) => m.userId == auth.user?.id).firstOrNull;
-      if (propio != null) {
-        setState(() {
-          _areaExpertise = areas.contains(propio.areaExpertise) ? propio.areaExpertise : areas[0];
-          _bioCtrl.text = propio.bio ?? '';
-          _disponibilidadCtrl.text = propio.disponibilidad ?? '';
-        });
+      // El backend no expone "mi perfil de mentor", así que se busca el propio
+      // dentro del listado público por id de usuario.
+      final propios = todos.where((m) => m.userId == auth.user?.id);
+      if (propios.isNotEmpty) {
+        final propio = propios.first;
+        if (mounted) {
+          setState(() {
+            _areaExpertise = areas.contains(propio.areaExpertise) ? propio.areaExpertise : areas.first;
+            _bioCtrl.text = propio.bio ?? '';
+            _disponibilidadCtrl.text = propio.disponibilidad ?? '';
+          });
+        }
       }
     } on ApiException catch (e) {
-      setState(() => _error = e.message);
+      if (mounted) setState(() => _error = e.message);
+    } catch (_) {
+      if (mounted) setState(() => _error = 'No se pudo cargar tu perfil de mentor');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
   Future<void> _guardar() async {
+    FocusScope.of(context).unfocus();
     setState(() {
       _guardando = true;
       _error = null;
       _mensajeGuardado = null;
     });
     try {
+      final bio = _bioCtrl.text.trim();
+      final disponibilidad = _disponibilidadCtrl.text.trim();
       await context.read<AuthController>().api.upsertMentorProfile(
             areaExpertise: _areaExpertise,
-            bio: _bioCtrl.text.trim().isEmpty ? null : _bioCtrl.text.trim(),
-            disponibilidad: _disponibilidadCtrl.text.trim().isEmpty ? null : _disponibilidadCtrl.text.trim(),
+            bio: bio.isEmpty ? null : bio,
+            disponibilidad: disponibilidad.isEmpty ? null : disponibilidad,
           );
-      setState(() => _mensajeGuardado = 'Tu perfil de mentor está publicado. Ya te pueden encontrar los jóvenes.');
+      if (mounted) {
+        setState(() => _mensajeGuardado =
+            'Tu perfil está publicado. Ya te pueden encontrar los jóvenes que buscan mentoría.');
+      }
     } on ApiException catch (e) {
-      setState(() => _error = e.message);
+      if (mounted) setState(() => _error = e.message);
     } catch (_) {
-      setState(() => _error = 'No se pudo guardar tu perfil de mentor');
+      if (mounted) setState(() => _error = 'No se pudo guardar tu perfil de mentor');
     } finally {
       if (mounted) setState(() => _guardando = false);
     }
@@ -83,77 +98,82 @@ class _MentorProfileScreenState extends State<MentorProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Mi perfil de mentor')),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      body: SafeArea(
+        top: false,
+        child: _loading
+            ? const SkeletonList(cantidad: 3)
+            : ListView(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
                 children: [
-                  const Text(
-                    'Este es el perfil que ven los jóvenes cuando buscan mentores para pedir acompañamiento.',
-                    style: TextStyle(color: Colors.black54),
-                  ),
-                  const SizedBox(height: 20),
-                  if (_error != null) ...[
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(10)),
-                      child: Text(_error!, style: const TextStyle(color: Color(0xFFDC2626))),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                  if (_mensajeGuardado != null) ...[
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: const Color(0xFFECFDF5), borderRadius: BorderRadius.circular(10)),
-                      child: Text(_mensajeGuardado!, style: const TextStyle(color: Color(0xFF059669))),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                  DropdownButtonFormField<String>(
-                    key: ValueKey(_areaExpertise),
-                    initialValue: _areaExpertise,
-                    isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Área de expertise'),
-                    items: areas.map((a) => DropdownMenuItem(value: a, child: Text(a))).toList(),
-                    onChanged: (v) => setState(() => _areaExpertise = v ?? _areaExpertise),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _bioCtrl,
-                    maxLines: 4,
-                    decoration: const InputDecoration(
-                      labelText: 'Bio',
-                      hintText: 'Contá tu experiencia y en qué podés ayudar.',
-                      alignLabelWithHint: true,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _disponibilidadCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Disponibilidad',
-                      hintText: 'Ej: Sábados por la mañana',
+                  FadeSlideIn(
+                    index: 0,
+                    child: BrandHeader(
+                      icono: Icons.volunteer_activism_outlined,
+                      titulo: 'Así te van a ver',
+                      subtitulo: 'Este es el perfil que aparece cuando alguien busca mentores.',
                     ),
                   ),
                   const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _guardando ? null : _guardar,
-                      child: _guardando
-                          ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Text('Guardar perfil'),
+                  if (_error != null) ...[
+                    InfoBanner(mensaje: _error!),
+                    const SizedBox(height: 16),
+                  ],
+                  if (_mensajeGuardado != null) ...[
+                    InfoBanner(mensaje: _mensajeGuardado!, tono: BannerTono.exito),
+                    const SizedBox(height: 16),
+                  ],
+                  FadeSlideIn(
+                    index: 1,
+                    child: DropdownButtonFormField<String>(
+                      key: ValueKey(_areaExpertise),
+                      initialValue: _areaExpertise,
+                      isExpanded: true,
+                      dropdownColor: RumboColors.surfaceRaised,
+                      decoration: const InputDecoration(
+                        labelText: 'Área de expertise',
+                        prefixIcon: Icon(Icons.category_outlined, size: 20),
+                      ),
+                      items: areas.map((a) => DropdownMenuItem(value: a, child: Text(a))).toList(),
+                      onChanged: (v) => setState(() => _areaExpertise = v ?? _areaExpertise),
                     ),
+                  ),
+                  const SizedBox(height: 16),
+                  FadeSlideIn(
+                    index: 2,
+                    child: TextField(
+                      controller: _bioCtrl,
+                      maxLines: 5,
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: const InputDecoration(
+                        labelText: 'Bio',
+                        hintText: 'Contá tu experiencia y en qué podés ayudar.',
+                        alignLabelWithHint: true,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  FadeSlideIn(
+                    index: 3,
+                    child: TextField(
+                      controller: _disponibilidadCtrl,
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: const InputDecoration(
+                        labelText: 'Disponibilidad',
+                        hintText: 'Ej: Sábados por la mañana',
+                        prefixIcon: Icon(Icons.schedule_rounded, size: 20),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  LoadingButton(
+                    texto: 'Guardar perfil',
+                    textoCargando: 'Guardando...',
+                    cargando: _guardando,
+                    onPressed: _guardar,
                   ),
                 ],
               ),
-            ),
+      ),
     );
   }
-}
-
-extension<T> on Iterable<T> {
-  T? get firstOrNull => isEmpty ? null : first;
 }
