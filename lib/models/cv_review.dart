@@ -1,3 +1,46 @@
+import 'dart:convert';
+
+/// A veces la IA no devuelve el JSON estructurado que espera el backend y
+/// este, como respaldo, guarda el texto crudo (que resulta ser JSON) en un
+/// campo de texto simple. Esto decodifica ese caso para no mostrarle al
+/// usuario las llaves y comillas crudas.
+String textoLegible(dynamic valor) {
+  if (valor == null) return '';
+  if (valor is! String) return _aTexto(valor);
+  final texto = valor.trim();
+  final pareceJson =
+      (texto.startsWith('{') && texto.endsWith('}')) || (texto.startsWith('[') && texto.endsWith(']'));
+  if (!pareceJson) return valor;
+  try {
+    return _aTexto(jsonDecode(texto));
+  } catch (_) {
+    return valor;
+  }
+}
+
+String _aTexto(dynamic valor) {
+  if (valor == null) return '';
+  if (valor is String) return textoLegible(valor);
+  if (valor is List) {
+    return valor.map(_aTexto).where((s) => s.isNotEmpty).join('. ');
+  }
+  if (valor is Map) {
+    for (final clave in ['resumen', 'mensaje', 'texto', 'detalle', 'descripcion']) {
+      final v = valor[clave];
+      if (v is String && v.trim().isNotEmpty) return textoLegible(v);
+    }
+    return valor.values.map(_aTexto).where((s) => s.isNotEmpty).join('. ');
+  }
+  return valor.toString();
+}
+
+/// Igual que [textoLegible] pero para una lista completa (fortalezas,
+/// mejoras, etc.), filtrando entradas vacías.
+List<String> listaDeTextos(dynamic valor) {
+  if (valor is! List) return const [];
+  return valor.map(_aTexto).map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+}
+
 class CvFeedback {
   final String resumen;
   final List<String> fortalezas;
@@ -8,10 +51,10 @@ class CvFeedback {
 
   factory CvFeedback.fromJson(Map<String, dynamic> json) {
     return CvFeedback(
-      resumen: json['resumen'] as String? ?? '',
-      fortalezas: (json['fortalezas'] as List? ?? []).map((e) => e.toString()).toList(),
-      aMejorar: (json['a_mejorar'] as List? ?? []).map((e) => e.toString()).toList(),
-      notaIa: json['nota_ia'] as String?,
+      resumen: textoLegible(json['resumen']),
+      fortalezas: listaDeTextos(json['fortalezas']),
+      aMejorar: listaDeTextos(json['a_mejorar']),
+      notaIa: json['nota_ia'] == null ? null : textoLegible(json['nota_ia']),
     );
   }
 }
@@ -61,18 +104,16 @@ class ComparacionCv {
   });
 
   factory ComparacionCv.fromJson(Map<String, dynamic> json) {
-    List<String> lista(String clave) =>
-        (json[clave] as List? ?? []).map((e) => e.toString()).toList();
     return ComparacionCv(
       hayComparacion: json['hay_comparacion'] as bool? ?? false,
-      mensaje: json['mensaje'] as String?,
+      mensaje: json['mensaje'] == null ? null : textoLegible(json['mensaje']),
       fechaAnterior: json['fecha_anterior'] as String?,
       fechaActual: json['fecha_actual'] as String?,
-      resumen: json['resumen'] as String?,
-      mejoras: lista('mejoras'),
-      pendientes: lista('pendientes'),
-      nuevasSugerencias: lista('nuevas_sugerencias'),
-      notaIa: json['nota_ia'] as String?,
+      resumen: json['resumen'] == null ? null : textoLegible(json['resumen']),
+      mejoras: listaDeTextos(json['mejoras']),
+      pendientes: listaDeTextos(json['pendientes']),
+      nuevasSugerencias: listaDeTextos(json['nuevas_sugerencias']),
+      notaIa: json['nota_ia'] == null ? null : textoLegible(json['nota_ia']),
     );
   }
 }
