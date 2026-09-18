@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Rumbo se conecta a un backend FastAPI que en el uso real corre por HTTP plano
+  en una red local (la laptop del equipo, un emulador, o una IP de LAN que el
+  usuario configura desde la app). Android 9+ bloquea el trafico en claro por
+  defecto, asi que sin esto el APK de release no puede hablar con el servidor:
+  todas las pantallas mostrarian "no se pudo conectar".
+
+  Se permite cleartext de forma general porque la direccion del servidor la
+  elige la persona en tiempo de ejecucion y no se puede listar de antemano.
+  Cuando el backend pase a HTTPS con dominio propio, conviene reemplazar esto
+  por un <domain-config> que solo permita ese host.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

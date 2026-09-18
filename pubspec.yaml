@@ -1,5 +1,5 @@
 name: rumbo
-description: "A new Flutter project."
+description: "Rumbo — prácticas, pasantías y primeros empleos, con acompañamiento."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -16,10 +16,10 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+version: 2.0.0+4
 
 environment:
-  sdk: ^3.12.2
+  sdk: ^3.9.0
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -56,20 +56,29 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.3
 
+# icon_app.png es el logo recortado a sangre (sin el margen blanco del original)
+# y icon_foreground.png el mismo logo con transparencia para el icono adaptativo.
+# El color de fondo es el azul propio del logo, así el rounded-square se funde
+# con el fondo y el icono se ve a sangre en vez de "una figura sobre un cuadro".
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/icon/icon.png"
+  image_path: "assets/icon/icon_app.png"
   min_sdk_android: 21
+  adaptive_icon_background: "#083F94"
+  adaptive_icon_foreground: "assets/icon/icon_foreground.png"
+  remove_alpha_ios: true
   web:
     generate: true
-    image_path: "assets/icon/icon.png"
+    image_path: "assets/icon/icon_app.png"
+    background_color: "#1F1F1F"
+    theme_color: "#A51C30"
   windows:
     generate: true
-    image_path: "assets/icon/icon.png"
+    image_path: "assets/icon/icon_app.png"
   macos:
     generate: true
-    image_path: "assets/icon/icon.png"
+    image_path: "assets/icon/icon_app.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -83,7 +92,7 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/icon/icon.png
+    - assets/icon/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

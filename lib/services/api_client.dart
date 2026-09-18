@@ -336,7 +336,7 @@ class ApiClient {
     return _request(
       'POST',
       '/interview/start',
-      body: {'modo': modo, if (sector != null) 'sector': sector, 'idioma': 'es'},
+      body: {'modo': modo, 'sector': ?sector, 'idioma': 'es'},
       parse: (json) => (sessionId: json['session_id'] as String, mensajeInicial: json['mensaje_inicial'] as String),
     );
   }
@@ -383,7 +383,7 @@ class ApiClient {
     return _request(
       'POST',
       '/mentoring/solicitar',
-      body: {'mentor_id': mentorId, if (mensajeInicial != null) 'mensaje_inicial': mensajeInicial},
+      body: {'mentor_id': mentorId, 'mensaje_inicial': ?mensajeInicial},
       parse: (json) => Mentoria.fromJson(json as Map<String, dynamic>),
     );
   }

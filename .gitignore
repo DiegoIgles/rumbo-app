@@ -50,3 +50,8 @@ app.*.map.json
 **/.symlinks/
 **/DerivedData/
 
+
+# Firma de release: las credenciales y el keystore NO van al repo.
+android/key.properties
+**/*.jks
+**/*.keystore

@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../services/api_client.dart';
 import '../services/auth_controller.dart';
 import '../theme.dart';
+import '../widgets/server_sheet.dart';
+import '../widgets/ui_kit.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -29,6 +31,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _submit() async {
+    FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
     setState(() {
       _loading = true;
@@ -48,152 +51,223 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [rumboPrimary, Color(0xFF0F2B33)],
-          ),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 420),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const SizedBox(height: 16),
-                    Center(
-                      child: Container(
-                        width: 96,
-                        height: 96,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.25),
-                              blurRadius: 24,
-                              offset: const Offset(0, 12),
-                            ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(24),
-                          child: Image.asset('assets/icon/icon.png', fit: BoxFit.cover),
-                        ),
-                      ),
+      body: Stack(
+        children: [
+          const _FondoMarca(),
+          SafeArea(
+            child: Column(
+              children: [
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 8, top: 4),
+                    child: IconButton(
+                      tooltip: 'Servidor',
+                      icon: const Icon(Icons.dns_outlined, color: RumboColors.textMid),
+                      onPressed: () => mostrarServerSheet(context),
                     ),
-                    const SizedBox(height: 20),
-                    Text(
-                      'Rumbo',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Encontrá tu primera oportunidad laboral',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white70),
-                    ),
-                    const SizedBox(height: 32),
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.15),
-                            blurRadius: 24,
-                            offset: const Offset(0, 12),
-                          ),
-                        ],
-                      ),
-                      child: Form(
-                        key: _formKey,
+                  ),
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 440),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Text(
-                              'Iniciá sesión',
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                            ),
+                            const FadeSlideIn(index: 0, child: _Encabezado()),
+                            const SizedBox(height: 34),
+                            FadeSlideIn(index: 1, child: _buildFormulario(context)),
                             const SizedBox(height: 20),
-                            if (_error != null) ...[
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFEF2F2),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.error_outline, color: Color(0xFFDC2626), size: 18),
-                                    const SizedBox(width: 8),
-                                    Expanded(child: Text(_error!, style: const TextStyle(color: Color(0xFFDC2626)))),
-                                  ],
+                            FadeSlideIn(
+                              index: 2,
+                              child: Center(
+                                child: TextButton(
+                                  onPressed: _loading
+                                      ? null
+                                      : () => Navigator.of(context).push(
+                                            RumboPageRoute(builder: (_) => const RegisterScreen()),
+                                          ),
+                                  child: const Text('¿No tenés cuenta? Registrate'),
                                 ),
                               ),
-                              const SizedBox(height: 16),
-                            ],
-                            TextFormField(
-                              controller: _emailCtrl,
-                              keyboardType: TextInputType.emailAddress,
-                              decoration: const InputDecoration(
-                                labelText: 'Email',
-                                prefixIcon: Icon(Icons.mail_outline),
-                              ),
-                              validator: (v) => (v == null || v.isEmpty) ? 'Ingresá tu email' : null,
-                            ),
-                            const SizedBox(height: 16),
-                            TextFormField(
-                              controller: _passwordCtrl,
-                              obscureText: !_showPassword,
-                              decoration: InputDecoration(
-                                labelText: 'Contraseña',
-                                prefixIcon: const Icon(Icons.lock_outline),
-                                suffixIcon: IconButton(
-                                  icon: Icon(_showPassword ? Icons.visibility_off : Icons.visibility),
-                                  onPressed: () => setState(() => _showPassword = !_showPassword),
-                                ),
-                              ),
-                              validator: (v) => (v == null || v.isEmpty) ? 'Ingresá tu contraseña' : null,
-                            ),
-                            const SizedBox(height: 24),
-                            ElevatedButton(
-                              onPressed: _loading ? null : _submit,
-                              child: _loading
-                                  ? const SizedBox(
-                                      height: 18,
-                                      width: 18,
-                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                    )
-                                  : const Text('Iniciar sesión'),
                             ),
                           ],
                         ),
                       ),
                     ),
-                    const SizedBox(height: 20),
-                    TextButton(
-                      onPressed: _loading
-                          ? null
-                          : () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RegisterScreen())),
-                      style: TextButton.styleFrom(foregroundColor: Colors.white),
-                      child: const Text('¿No tenés cuenta? Registrate'),
-                    ),
-                  ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFormulario(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: RumboColors.surface,
+        borderRadius: BorderRadius.circular(RumboRadii.xl),
+        border: Border.all(color: RumboColors.outline),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.4),
+            blurRadius: 32,
+            offset: const Offset(0, 16),
+          ),
+        ],
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Iniciá sesión', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 6),
+            const Text(
+              'Entrá con la cuenta que usás en Rumbo.',
+              style: TextStyle(color: RumboColors.textLow, fontSize: 13.5),
+            ),
+            const SizedBox(height: 22),
+            if (_error != null) ...[
+              InfoBanner(mensaje: _error!),
+              const SizedBox(height: 18),
+            ],
+            TextFormField(
+              controller: _emailCtrl,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              autofillHints: const [AutofillHints.email],
+              decoration: const InputDecoration(
+                labelText: 'Email',
+                prefixIcon: Icon(Icons.mail_outline, size: 20),
+              ),
+              validator: (v) => (v == null || v.trim().isEmpty) ? 'Ingresá tu email' : null,
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _passwordCtrl,
+              obscureText: !_showPassword,
+              textInputAction: TextInputAction.done,
+              autofillHints: const [AutofillHints.password],
+              onFieldSubmitted: (_) => _loading ? null : _submit(),
+              decoration: InputDecoration(
+                labelText: 'Contraseña',
+                prefixIcon: const Icon(Icons.lock_outline, size: 20),
+                suffixIcon: IconButton(
+                  tooltip: _showPassword ? 'Ocultar' : 'Mostrar',
+                  icon: Icon(_showPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 20),
+                  onPressed: () => setState(() => _showPassword = !_showPassword),
                 ),
               ),
+              validator: (v) => (v == null || v.isEmpty) ? 'Ingresá tu contraseña' : null,
             ),
+            const SizedBox(height: 26),
+            LoadingButton(
+              texto: 'Iniciar sesión',
+              textoCargando: 'Entrando...',
+              cargando: _loading,
+              onPressed: _submit,
+              icono: Icons.arrow_forward_rounded,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Encabezado extends StatelessWidget {
+  const _Encabezado();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: RumboColors.crimson.withValues(alpha: 0.32),
+                blurRadius: 44,
+                spreadRadius: 1,
+                offset: const Offset(0, 14),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(28),
+            child: Image.asset('assets/icon/icon_app.png', width: 96, height: 96),
+          ),
+        ),
+        const SizedBox(height: 24),
+        Text(
+          'Encontrá tu rumbo',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.headlineMedium,
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Prácticas, pasantías y tu primer empleo,\ncon acompañamiento en el camino.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: RumboColors.textMid, fontSize: 14.5, height: 1.5),
+        ),
+      ],
+    );
+  }
+}
+
+/// Fondo de la pantalla de entrada: tinta de base con un halo marino arriba y
+/// uno carmín abajo. Son los tres colores de marca sin necesidad de imágenes.
+class _FondoMarca extends StatelessWidget {
+  const _FondoMarca();
+
+  @override
+  Widget build(BuildContext context) {
+    return const DecoratedBox(
+      decoration: BoxDecoration(color: RumboColors.ink),
+      child: Stack(
+        children: [
+          Positioned(
+            top: -160,
+            left: -120,
+            child: _Halo(color: RumboColors.navy, size: 420, opacity: 0.55),
+          ),
+          Positioned(
+            bottom: -180,
+            right: -140,
+            child: _Halo(color: RumboColors.crimson, size: 400, opacity: 0.3),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Halo extends StatelessWidget {
+  final Color color;
+  final double size;
+  final double opacity;
+
+  const _Halo({required this.color, required this.size, required this.opacity});
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: RadialGradient(
+            colors: [color.withValues(alpha: opacity), color.withValues(alpha: 0)],
           ),
         ),
       ),

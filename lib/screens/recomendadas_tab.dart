@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../models/vacante.dart';
 import '../services/api_client.dart';
 import '../services/auth_controller.dart';
+import '../theme.dart';
+import '../widgets/ui_kit.dart';
 import '../widgets/vacante_card.dart';
 import 'vacante_detail_screen.dart';
 
@@ -34,72 +36,102 @@ class _RecomendadasTabState extends State<RecomendadasTab> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Recomendadas para vos')),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          _reload();
-          await _future;
-        },
-        child: FutureBuilder<List<Vacante>>(
-          future: _future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError) {
-              final isPerfilIncompleto = snapshot.error is ApiException && (snapshot.error as ApiException).status == 400;
-              return ListView(
-                children: [
-                  const SizedBox(height: 80),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 32),
-                    child: Column(
-                      children: [
-                        Icon(
-                          isPerfilIncompleto ? Icons.person_outline : Icons.error_outline,
-                          size: 32,
-                          color: isPerfilIncompleto ? Colors.black45 : const Color(0xFFDC2626),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          isPerfilIncompleto
-                              ? 'Completá tu perfil para recibir recomendaciones de vacantes según tu área.'
-                              : (snapshot.error as ApiException).message,
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 16),
-                        if (isPerfilIncompleto)
-                          ElevatedButton(onPressed: widget.onIrAPerfil, child: const Text('Ir a mi perfil'))
-                        else
-                          OutlinedButton(onPressed: _reload, child: const Text('Reintentar')),
-                      ],
-                    ),
-                  ),
-                ],
-              );
-            }
-            final vacantes = snapshot.data ?? [];
-            if (vacantes.isEmpty) {
-              return ListView(
-                children: const [
-                  SizedBox(height: 80),
-                  Center(child: Text('Todavía no hay vacantes recomendadas para tu área.')),
-                ],
-              );
-            }
-            return ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: vacantes.length,
-              itemBuilder: (context, i) {
-                final v = vacantes[i];
-                return VacanteCard(
-                  vacante: v,
-                  onTap: () =>
-                      Navigator.of(context).push(MaterialPageRoute(builder: (_) => VacanteDetailScreen(vacante: v))),
-                );
-              },
-            );
+      body: SafeArea(
+        bottom: false,
+        child: RumboRefresh(
+          onRefresh: () async {
+            _reload();
+            await _future.catchError((_) => <Vacante>[]);
           },
+          child: FutureBuilder<List<Vacante>>(
+            future: _future,
+            builder: (context, snapshot) {
+              final cabecera = Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
+                child: FadeSlideIn(
+                  index: 0,
+                  child: BrandHeader(
+                    icono: Icons.auto_awesome,
+                    titulo: 'Para vos',
+                    subtitulo: 'Vacantes elegidas según el área que cargaste en tu perfil.',
+                  ),
+                ),
+              );
+
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: [
+                    cabecera,
+                    const SkeletonList(cantidad: 3, padding: EdgeInsets.fromLTRB(16, 0, 16, 110)),
+                  ],
+                );
+              }
+
+              if (snapshot.hasError) {
+                final error = snapshot.error;
+                // El backend responde 400 cuando el perfil todavía no tiene
+                // área cargada: eso no es una falla, es un paso pendiente del
+                // usuario, y por eso se muestra distinto de un error de red.
+                final perfilIncompleto = error is ApiException && error.status == 400;
+                return ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: [
+                    cabecera,
+                    StatusView(
+                      icono: perfilIncompleto ? Icons.person_search_outlined : Icons.cloud_off_rounded,
+                      titulo: perfilIncompleto ? 'Falta completar tu perfil' : 'No se pudo conectar',
+                      detalle: perfilIncompleto
+                          ? 'Elegí tu sector de interés y te mostramos las vacantes que mejor encajan.'
+                          : (error is ApiException ? error.message : 'Intentalo de nuevo en un momento.'),
+                      textoAccion: perfilIncompleto ? 'Ir a mi perfil' : 'Reintentar',
+                      onAccion: perfilIncompleto ? widget.onIrAPerfil : _reload,
+                      esError: !perfilIncompleto,
+                    ),
+                  ],
+                );
+              }
+
+              final vacantes = snapshot.data ?? [];
+              if (vacantes.isEmpty) {
+                return ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: [
+                    cabecera,
+                    const StatusView(
+                      icono: Icons.explore_outlined,
+                      titulo: 'Todavía nada por acá',
+                      detalle: 'Aún no hay vacantes publicadas en tu área. Volvé a mirar en unos días.',
+                    ),
+                  ],
+                );
+              }
+
+              return ListView.separated(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.only(bottom: 110),
+                itemCount: vacantes.length + 1,
+                separatorBuilder: (_, _) => const SizedBox(height: 12),
+                itemBuilder: (context, i) {
+                  if (i == 0) return cabecera;
+                  final v = vacantes[i - 1];
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: FadeSlideIn(
+                      key: ValueKey(v.id),
+                      index: i - 1,
+                      child: VacanteCard(
+                        vacante: v,
+                        onTap: () => Navigator.of(context).push(
+                          RumboPageRoute(builder: (_) => VacanteDetailScreen(vacante: v)),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
         ),
       ),
     );
