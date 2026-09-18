@@ -32,7 +32,11 @@ class _ServerSheet extends StatefulWidget {
 enum _EstadoPrueba { inicial, probando, ok, fallo }
 
 class _ServerSheetState extends State<_ServerSheet> {
-  late final TextEditingController _ctrl = TextEditingController(text: ApiConfig.instance.baseUrl);
+  // baseUrlEfectiva, no baseUrl: en web con la configuracion por defecto la
+  // app en realidad usa localhost (ver ApiConfig.baseUrlEfectiva), pero el
+  // campo mostraba el valor crudo (la IP de LAN) y "Probar" terminaba
+  // probando esa IP en vez de lo que la app usa de verdad.
+  late final TextEditingController _ctrl = TextEditingController(text: ApiConfig.instance.baseUrlEfectiva);
   _EstadoPrueba _estado = _EstadoPrueba.inicial;
   String? _detalle;
   String? _errorCampo;
