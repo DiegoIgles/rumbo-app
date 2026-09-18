@@ -13,19 +13,17 @@ class ApiConfig extends ChangeNotifier {
   static final ApiConfig instance = ApiConfig._();
 
   static const String _prefsKey = 'rumbo_api_base_url';
-  static const String _valorLegacy = 'http://10.253.6.7:8001';
 
-  /// Valor de fábrica para probar en celular físico por USB.
-  ///
-  /// Antes se apuntaba a una IP fija de Wi-Fi, que se rompe cada vez que la red
-  /// cambia. Con `adb reverse tcp:8000 tcp:8000`, el teléfono ve el backend de
-  /// la laptop como localhost y el APK funciona aunque no esté en la misma Wi-Fi.
-  static const String valorPorDefecto = 'http://127.0.0.1:8000';
+  /// Valor de fábrica: IP de la laptop en la red Wi-Fi actual.
+  static const String valorPorDefecto = 'http://10.253.6.7:8001';
+
+  /// Para probar en celular físico por USB con `adb reverse tcp:8000
+  /// tcp:8000`, el teléfono ve el backend de la laptop como localhost.
+  static const String sugerenciaUsb = 'http://127.0.0.1:8000';
 
   /// En emulador de Android el host de la laptop no es localhost sino 10.0.2.2.
   static const String sugerenciaEmulador = 'http://10.0.2.2:8000';
   static const String sugerenciaLocal = 'http://localhost:8000';
-  static const String sugerenciaUsb = valorPorDefecto;
   static const String sugerenciaWifiLaptop = 'http://10.253.12.184:8000';
   static const String sugerenciaPuertoAlterno = 'http://10.253.12.184:8001';
 
@@ -43,8 +41,7 @@ class ApiConfig extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     final guardado = prefs.getString(_prefsKey);
     if (guardado != null && guardado.trim().isNotEmpty) {
-      final limpio = normalizar(guardado);
-      _baseUrl = limpio == _valorLegacy ? valorPorDefecto : limpio;
+      _baseUrl = normalizar(guardado);
       notifyListeners();
     }
   }

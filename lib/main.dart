@@ -47,22 +47,48 @@ class RumboApp extends StatelessWidget {
 /// Decide qué se ve según el estado de sesión. El cambio entre pantallas se
 /// hace con un fundido para que no haya un salto brusco al terminar el
 /// bootstrap o al cerrar sesión.
-class AuthGate extends StatelessWidget {
+///
+/// El splash se muestra al menos 5 segundos (aunque el bootstrap termine
+/// antes), tiempo que se aprovecha para mostrar un mensaje de
+/// concientización ambiental.
+class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
+
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  bool _minDelayDone = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(seconds: 5), () {
+      if (mounted) setState(() => _minDelayDone = true);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
+    final showSplash = !_minDelayDone || auth.status == AuthStatus.loading;
+
+    Widget child;
+    if (showSplash) {
+      child = const _SplashScreen(key: ValueKey('splash'));
+    } else if (auth.status == AuthStatus.signedIn) {
+      child = const HomeShell(key: ValueKey('home'));
+    } else {
+      child = const LoginScreen(key: ValueKey('login'));
+    }
+
     return AnimatedSwitcher(
       duration: RumboMotion.slow,
       switchInCurve: RumboMotion.decelerate,
       transitionBuilder: (child, animation) =>
           FadeTransition(opacity: animation, child: child),
-      child: switch (auth.status) {
-        AuthStatus.loading => const _SplashScreen(key: ValueKey('splash')),
-        AuthStatus.signedIn => const HomeShell(key: ValueKey('home')),
-        AuthStatus.signedOut => const LoginScreen(key: ValueKey('login')),
-      },
+      child: child,
     );
   }
 }
@@ -144,6 +170,33 @@ class _SplashScreenState extends State<_SplashScreen>
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(2),
                 child: const LinearProgressIndicator(minHeight: 3),
+              ),
+            ),
+            const SizedBox(height: 28),
+            SizedBox(
+              width: 260,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(top: 1),
+                    child: Icon(Icons.eco_rounded, size: 15, color: RumboColors.success),
+                  ),
+                  const SizedBox(width: 6),
+                  const Flexible(
+                    child: Text(
+                      'Postulate sin papel: tu proceso es 100% digital.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: RumboColors.textMid,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
