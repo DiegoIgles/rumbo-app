@@ -36,7 +36,9 @@ class _ServerSheetState extends State<_ServerSheet> {
   // app en realidad usa localhost (ver ApiConfig.baseUrlEfectiva), pero el
   // campo mostraba el valor crudo (la IP de LAN) y "Probar" terminaba
   // probando esa IP en vez de lo que la app usa de verdad.
-  late final TextEditingController _ctrl = TextEditingController(text: ApiConfig.instance.baseUrlEfectiva);
+  late final TextEditingController _ctrl = TextEditingController(
+    text: ApiConfig.instance.baseUrlEfectiva,
+  );
   _EstadoPrueba _estado = _EstadoPrueba.inicial;
   String? _detalle;
   String? _errorCampo;
@@ -72,20 +74,22 @@ class _ServerSheetState extends State<_ServerSheet> {
       } else {
         setState(() {
           _estado = _EstadoPrueba.fallo;
-          _detalle = 'Respondió con código ${r.statusCode}. ¿Es un servidor de Rumbo?';
+          _detalle =
+              'Respondió con código ${r.statusCode}. ¿Es un servidor de Rumbo?';
         });
       }
     } on TimeoutException {
       if (!mounted) return;
       setState(() {
         _estado = _EstadoPrueba.fallo;
-        _detalle = 'No respondió a tiempo. Revisá que estés en la misma red.';
+        _detalle =
+            'No respondió a tiempo. Si es celular físico, usá Wi-Fi de la misma red o activá ADB reverse.';
       });
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       setState(() {
         _estado = _EstadoPrueba.fallo;
-        _detalle = 'No se pudo conectar con esa dirección.';
+        _detalle = 'No se pudo conectar con $base. Detalle: ${e.runtimeType}.';
       });
     }
   }
@@ -116,11 +120,15 @@ class _ServerSheetState extends State<_ServerSheet> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Container(
         decoration: const BoxDecoration(
           color: RumboColors.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(RumboRadii.xl)),
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(RumboRadii.xl),
+          ),
           border: Border(top: BorderSide(color: RumboColors.outline)),
         ),
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
@@ -145,8 +153,13 @@ class _ServerSheetState extends State<_ServerSheet> {
               const SizedBox(height: 8),
               const Text(
                 'La app se conecta al backend en esta dirección. Cambiala si el '
-                'servidor está en otra máquina o si cambió la IP de la red.',
-                style: TextStyle(color: RumboColors.textMid, fontSize: 13.5, height: 1.45),
+                'servidor está en otra máquina, si cambió la IP de la red o si '
+                'estás probando con un celular conectado por USB.',
+                style: TextStyle(
+                  color: RumboColors.textMid,
+                  fontSize: 13.5,
+                  height: 1.45,
+                ),
               ),
               const SizedBox(height: 18),
               TextField(
@@ -175,16 +188,26 @@ class _ServerSheetState extends State<_ServerSheet> {
                 runSpacing: 8,
                 children: [
                   _Sugerencia(
+                    etiqueta: 'USB ADB',
+                    onTap: () => _usarSugerencia(ApiConfig.sugerenciaUsb),
+                  ),
+                  _Sugerencia(
+                    etiqueta: 'Wi-Fi laptop',
+                    onTap: () =>
+                        _usarSugerencia(ApiConfig.sugerenciaWifiLaptop),
+                  ),
+                  _Sugerencia(
                     etiqueta: 'Emulador',
                     onTap: () => _usarSugerencia(ApiConfig.sugerenciaEmulador),
                   ),
                   _Sugerencia(
-                    etiqueta: 'Esta máquina',
+                    etiqueta: 'PC local',
                     onTap: () => _usarSugerencia(ApiConfig.sugerenciaLocal),
                   ),
                   _Sugerencia(
-                    etiqueta: 'Valor original',
-                    onTap: () => _usarSugerencia(ApiConfig.valorPorDefecto),
+                    etiqueta: 'Puerto 8001',
+                    onTap: () =>
+                        _usarSugerencia(ApiConfig.sugerenciaPuertoAlterno),
                   ),
                 ],
               ),
@@ -192,7 +215,9 @@ class _ServerSheetState extends State<_ServerSheet> {
                 const SizedBox(height: 16),
                 InfoBanner(
                   mensaje: _detalle!,
-                  tono: _estado == _EstadoPrueba.ok ? BannerTono.exito : BannerTono.error,
+                  tono: _estado == _EstadoPrueba.ok
+                      ? BannerTono.exito
+                      : BannerTono.error,
                 ),
               ],
               const SizedBox(height: 20),
@@ -200,7 +225,9 @@ class _ServerSheetState extends State<_ServerSheet> {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: _estado == _EstadoPrueba.probando ? null : _probar,
+                      onPressed: _estado == _EstadoPrueba.probando
+                          ? null
+                          : _probar,
                       icon: _estado == _EstadoPrueba.probando
                           ? const SizedBox(
                               height: 15,
@@ -208,7 +235,11 @@ class _ServerSheetState extends State<_ServerSheet> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.wifi_tethering, size: 18),
-                      label: Text(_estado == _EstadoPrueba.probando ? 'Probando...' : 'Probar'),
+                      label: Text(
+                        _estado == _EstadoPrueba.probando
+                            ? 'Probando...'
+                            : 'Probar',
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -243,11 +274,17 @@ class _Sugerencia extends StatelessWidget {
         decoration: BoxDecoration(
           color: RumboColors.navyRaised,
           borderRadius: RumboRadii.pill,
-          border: Border.all(color: RumboColors.navyBright.withValues(alpha: 0.3)),
+          border: Border.all(
+            color: RumboColors.navyBright.withValues(alpha: 0.3),
+          ),
         ),
         child: Text(
           etiqueta,
-          style: const TextStyle(color: RumboColors.navyBright, fontSize: 12.5, fontWeight: FontWeight.w600),
+          style: const TextStyle(
+            color: RumboColors.navyBright,
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );
