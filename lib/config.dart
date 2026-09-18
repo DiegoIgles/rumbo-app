@@ -9,7 +9,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 /// - Emulador Android: si volvés a usarlo en vez del celular físico, cambiá
 ///   esto por 'http://10.0.2.2:$_apiPort'.
 const String _apiPort = '8001';
-const String _lanIp = '192.168.100.252';
+const String _lanIp = '10.253.6.7';
 
 String get apiBaseUrl {
   if (kIsWeb) return 'http://localhost:$_apiPort';

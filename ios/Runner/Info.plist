@@ -32,6 +32,11 @@
 	<string>Rumbo usa el micrófono para que puedas responder por voz durante la práctica de entrevistas.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Rumbo transcribe lo que decís durante la práctica de entrevistas para poder mostrarlo como texto.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
