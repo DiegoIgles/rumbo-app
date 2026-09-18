@@ -1,19 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  La app es oscura siempre, así que estos estilos usan el tema Black incluso
-  cuando el sistema está en modo claro. Con el tema Light por defecto, la
-  ventana quedaba blanca detrás de la UI de Flutter y se veía un destello
-  blanco al abrir la app y al rotarla.
+  Variante blanca: la ventana nativa usa tema claro y el mismo fondo blanco
+  que Flutter para evitar destellos durante el arranque.
 -->
 <resources>
     <!-- Tema de la ventana mientras arranca el proceso. -->
-    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
+    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <!-- Se quita solo cuando Flutter dibuja su primer frame. -->
         <item name="android:windowBackground">@drawable/launch_background</item>
     </style>
     <!-- Tema de la ventana una vez arrancado el proceso: es el color que se ve
          detrás de la UI de Flutter mientras se inicializa. -->
-    <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
+    <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowBackground">@drawable/launch_background</item>
     </style>
 </resources>

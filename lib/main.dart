@@ -16,9 +16,9 @@ Future<void> main() async {
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
+      statusBarIconBrightness: Brightness.dark,
       systemNavigationBarColor: RumboColors.ink,
-      systemNavigationBarIconBrightness: Brightness.light,
+      systemNavigationBarIconBrightness: Brightness.dark,
     ),
   );
   runApp(const RumboApp());
@@ -56,7 +56,8 @@ class AuthGate extends StatelessWidget {
     return AnimatedSwitcher(
       duration: RumboMotion.slow,
       switchInCurve: RumboMotion.decelerate,
-      transitionBuilder: (child, animation) => FadeTransition(opacity: animation, child: child),
+      transitionBuilder: (child, animation) =>
+          FadeTransition(opacity: animation, child: child),
       child: switch (auth.status) {
         AuthStatus.loading => const _SplashScreen(key: ValueKey('splash')),
         AuthStatus.signedIn => const HomeShell(key: ValueKey('home')),
@@ -74,7 +75,8 @@ class _SplashScreen extends StatefulWidget {
   State<_SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<_SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<_SplashScreen>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1600),
@@ -105,7 +107,9 @@ class _SplashScreenState extends State<_SplashScreen> with SingleTickerProviderS
                       borderRadius: BorderRadius.circular(26),
                       boxShadow: [
                         BoxShadow(
-                          color: RumboColors.crimson.withValues(alpha: 0.18 + t * 0.22),
+                          color: RumboColors.crimson.withValues(
+                            alpha: 0.18 + t * 0.22,
+                          ),
                           blurRadius: 40,
                           spreadRadius: 2,
                         ),
@@ -117,7 +121,11 @@ class _SplashScreenState extends State<_SplashScreen> with SingleTickerProviderS
               },
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(26),
-                child: Image.asset('assets/icon/icon_app.png', width: 104, height: 104),
+                child: Image.asset(
+                  'assets/icon/icon_app.png',
+                  width: 104,
+                  height: 104,
+                ),
               ),
             ),
             const SizedBox(height: 28),

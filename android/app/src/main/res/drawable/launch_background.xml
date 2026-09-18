@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Fondo de la ventana mientras arranca el proceso, antes de que Flutter dibuje
-  su primer frame. Va en #1F1F1F (la tinta de la marca) y no en blanco: la app
-  es oscura, y el blanco por defecto producia un destello al abrirla.
+  su primer frame. Esta variante usa fondo blanco desde el primer pixel para
+  que el splash nativo coincida con la UI clara.
   El color va inline a proposito, para que no dependa de colors.xml, que lo
   regenera flutter_launcher_icons.
 -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item>
-        <color android:color="#FF1F1F1F" />
+        <color android:color="#FFFFFFFF" />
     </item>
 </layer-list>
