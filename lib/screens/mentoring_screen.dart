@@ -6,6 +6,8 @@ import '../models/mentoria.dart';
 import '../services/api_client.dart';
 import '../services/auth_controller.dart';
 import '../theme.dart';
+import '../utils/formato.dart';
+import '../widgets/ui_kit.dart';
 import 'mentoria_chat_screen.dart';
 
 class MentoringScreen extends StatefulWidget {
@@ -34,13 +36,20 @@ class _MentoringScreenState extends State<MentoringScreen> with SingleTickerProv
           tabs: const [Tab(text: 'Mentores'), Tab(text: 'Mis mentorías')],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: const [_MentoresTab(), _MisMentoriasTab()],
+      body: SafeArea(
+        top: false,
+        child: TabBarView(
+          controller: _tabController,
+          children: const [_MentoresTab(), _MisMentoriasTab()],
+        ),
       ),
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// Buscar mentores
+// ---------------------------------------------------------------------------
 
 class _MentoresTab extends StatefulWidget {
   const _MentoresTab();
@@ -71,16 +80,19 @@ class _MentoresTabState extends State<_MentoresTab> {
     setState(() => _solicitando.add(mentor.userId));
     try {
       await context.read<AuthController>().api.solicitarMentoria(mentorId: mentor.userId);
+      if (!mounted) return;
       setState(() => _solicitados.add(mentor.userId));
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Le pediste mentoría a ${mentor.nombre}.')),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Le pediste mentoría a ${mentor.nombre}.')),
+      );
     } on ApiException catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No se pudo enviar la solicitud')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo enviar la solicitud')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _solicitando.remove(mentor.userId));
     }
@@ -90,101 +102,81 @@ class _MentoresTabState extends State<_MentoresTab> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-          child: DropdownButtonFormField<String?>(
-            key: ValueKey(_area),
-            initialValue: _area,
-            isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Área de expertise', isDense: true),
-            items: [
-              const DropdownMenuItem(value: null, child: Text('Todas')),
-              ...areas.map((a) => DropdownMenuItem(value: a, child: Text(a))),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 38,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            children: [
+              _ChipArea(texto: 'Todas', activo: _area == null, onTap: () {
+                _area = null;
+                _reload();
+              }),
+              for (final a in areas)
+                _ChipArea(
+                  texto: a,
+                  activo: _area == a,
+                  onTap: () {
+                    _area = _area == a ? null : a;
+                    _reload();
+                  },
+                ),
             ],
-            onChanged: (v) {
-              _area = v;
-              _reload();
-            },
           ),
         ),
+        const SizedBox(height: 6),
         Expanded(
-          child: RefreshIndicator(
+          child: RumboRefresh(
             onRefresh: () async {
               _reload();
-              await _future;
+              await _future.catchError((_) => <MentorProfile>[]);
             },
             child: FutureBuilder<List<MentorProfile>>(
               future: _future,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const SkeletonList(cantidad: 3);
                 }
                 if (snapshot.hasError) {
-                  return Center(
-                    child: Text(snapshot.error is ApiException ? (snapshot.error as ApiException).message : 'Error al cargar mentores'),
+                  final msg = snapshot.error is ApiException
+                      ? (snapshot.error as ApiException).message
+                      : 'No pudimos cargar los mentores';
+                  return ScrollableStatusView(
+                    view: StatusView(
+                      icono: Icons.cloud_off_rounded,
+                      titulo: 'No se pudo conectar',
+                      detalle: msg,
+                      textoAccion: 'Reintentar',
+                      onAccion: _reload,
+                      esError: true,
+                    ),
                   );
                 }
                 final mentores = snapshot.data ?? [];
                 if (mentores.isEmpty) {
-                  return ListView(
-                    children: const [SizedBox(height: 60), Center(child: Text('No hay mentores disponibles todavía.'))],
+                  return const ScrollableStatusView(
+                    view: StatusView(
+                      icono: Icons.people_outline,
+                      titulo: 'Sin mentores por ahora',
+                      detalle: 'Todavía no hay mentores publicados en esta área.',
+                    ),
                   );
                 }
                 return ListView.separated(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 28),
                   itemCount: mentores.length,
                   separatorBuilder: (_, _) => const SizedBox(height: 12),
                   itemBuilder: (context, i) {
                     final m = mentores[i];
-                    final yaSolicitado = _solicitados.contains(m.userId);
-                    final solicitando = _solicitando.contains(m.userId);
-                    return Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(14),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                CircleAvatar(backgroundColor: rumboPrimary.withValues(alpha: 0.12), child: Icon(Icons.person, color: rumboPrimary)),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(m.nombre, style: const TextStyle(fontWeight: FontWeight.w700)),
-                                      Text(m.areaExpertise, style: const TextStyle(color: Colors.black54, fontSize: 13)),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            if (m.bio != null && m.bio!.isNotEmpty) ...[
-                              const SizedBox(height: 10),
-                              Text(m.bio!),
-                            ],
-                            if (m.disponibilidad != null && m.disponibilidad!.isNotEmpty) ...[
-                              const SizedBox(height: 6),
-                              Row(
-                                children: [
-                                  const Icon(Icons.schedule, size: 14, color: Colors.black45),
-                                  const SizedBox(width: 4),
-                                  Text(m.disponibilidad!, style: const TextStyle(fontSize: 12.5, color: Colors.black54)),
-                                ],
-                              ),
-                            ],
-                            const SizedBox(height: 10),
-                            SizedBox(
-                              width: double.infinity,
-                              child: OutlinedButton(
-                                onPressed: (yaSolicitado || solicitando) ? null : () => _solicitar(m),
-                                child: Text(
-                                  yaSolicitado ? 'Solicitud enviada' : (solicitando ? 'Enviando...' : 'Pedir mentoría'),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                    return FadeSlideIn(
+                      key: ValueKey(m.userId),
+                      index: i,
+                      child: _MentorCard(
+                        mentor: m,
+                        solicitado: _solicitados.contains(m.userId),
+                        solicitando: _solicitando.contains(m.userId),
+                        onSolicitar: () => _solicitar(m),
                       ),
                     );
                   },
@@ -197,6 +189,136 @@ class _MentoresTabState extends State<_MentoresTab> {
     );
   }
 }
+
+class _ChipArea extends StatelessWidget {
+  final String texto;
+  final bool activo;
+  final VoidCallback onTap;
+
+  const _ChipArea({required this.texto, required this.activo, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: RumboMotion.fast,
+          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
+          decoration: BoxDecoration(
+            color: activo ? RumboColors.crimson : RumboColors.surface,
+            borderRadius: RumboRadii.pill,
+            border: Border.all(color: activo ? RumboColors.crimson : RumboColors.outline),
+          ),
+          child: Text(
+            texto,
+            style: TextStyle(
+              color: activo ? Colors.white : RumboColors.textMid,
+              fontSize: 12.5,
+              fontWeight: activo ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MentorCard extends StatelessWidget {
+  final MentorProfile mentor;
+  final bool solicitado;
+  final bool solicitando;
+  final VoidCallback onSolicitar;
+
+  const _MentorCard({
+    required this.mentor,
+    required this.solicitado,
+    required this.solicitando,
+    required this.onSolicitar,
+  });
+
+  String get _iniciales {
+    final partes = mentor.nombre.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    if (partes.isEmpty) return '?';
+    if (partes.length == 1) return partes.first.substring(0, 1).toUpperCase();
+    return (partes.first.substring(0, 1) + partes[1].substring(0, 1)).toUpperCase();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RumboCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  gradient: RumboColors.navyGradient,
+                  shape: BoxShape.circle,
+                ),
+                child: Text(
+                  _iniciales,
+                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800),
+                ),
+              ),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(mentor.nombre, style: Theme.of(context).textTheme.titleSmall),
+                    const SizedBox(height: 5),
+                    RumboTag(texto: mentor.areaExpertise, color: RumboColors.navyBright),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (mentor.bio != null && mentor.bio!.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Text(
+              mentor.bio!,
+              style: const TextStyle(color: RumboColors.textMid, fontSize: 13.5, height: 1.5),
+            ),
+          ],
+          if (mentor.disponibilidad != null && mentor.disponibilidad!.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            MetaRow(icono: Icons.schedule_rounded, texto: mentor.disponibilidad!),
+          ],
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: solicitado
+                ? OutlinedButton.icon(
+                    onPressed: null,
+                    icon: const Icon(Icons.check_rounded, size: 17),
+                    label: const Text('Solicitud enviada'),
+                  )
+                : ElevatedButton(
+                    onPressed: solicitando ? null : onSolicitar,
+                    child: solicitando
+                        ? const SizedBox(
+                            height: 16,
+                            width: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white70),
+                          )
+                        : const Text('Pedir mentoría'),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Mis mentorías
+// ---------------------------------------------------------------------------
 
 class _MisMentoriasTab extends StatefulWidget {
   const _MisMentoriasTab();
@@ -211,58 +333,96 @@ class _MisMentoriasTabState extends State<_MisMentoriasTab> {
   @override
   void initState() {
     super.initState();
-    _future = context.read<AuthController>().api.misMentorias();
+    _future = _load();
   }
 
+  Future<List<Mentoria>> _load() => context.read<AuthController>().api.misMentorias();
+
   void _reload() => setState(() {
-        _future = context.read<AuthController>().api.misMentorias();
+        _future = _load();
       });
 
   @override
   Widget build(BuildContext context) {
-    return RefreshIndicator(
+    return RumboRefresh(
       onRefresh: () async {
         _reload();
-        await _future;
+        await _future.catchError((_) => <Mentoria>[]);
       },
       child: FutureBuilder<List<Mentoria>>(
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const SkeletonList(cantidad: 3);
           }
           if (snapshot.hasError) {
-            return ListView(
-              children: [
-                const SizedBox(height: 60),
-                Center(
-                  child: Text(snapshot.error is ApiException ? (snapshot.error as ApiException).message : 'Error al cargar tus mentorías'),
-                ),
-              ],
+            final msg = snapshot.error is ApiException
+                ? (snapshot.error as ApiException).message
+                : 'No pudimos cargar tus mentorías';
+            return ScrollableStatusView(
+              view: StatusView(
+                icono: Icons.cloud_off_rounded,
+                titulo: 'No se pudo conectar',
+                detalle: msg,
+                textoAccion: 'Reintentar',
+                onAccion: _reload,
+                esError: true,
+              ),
             );
           }
           final mentorias = snapshot.data ?? [];
           if (mentorias.isEmpty) {
-            return ListView(
-              children: const [SizedBox(height: 60), Center(child: Text('Todavía no pediste ninguna mentoría.'))],
+            return const ScrollableStatusView(
+              view: StatusView(
+                icono: Icons.handshake_outlined,
+                titulo: 'Todavía no pediste mentoría',
+                detalle: 'Buscá un mentor en la otra pestaña y mandale una solicitud.',
+              ),
             );
           }
           return ListView.separated(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
             itemCount: mentorias.length,
             separatorBuilder: (_, _) => const SizedBox(height: 10),
             itemBuilder: (context, i) {
               final m = mentorias[i];
-              return Card(
-                child: ListTile(
-                  contentPadding: const EdgeInsets.all(12),
-                  leading: _EstadoIcon(estado: m.estado),
-                  title: Text(m.mentorNombre, style: const TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: Text(_estadoLabel(m.estado)),
-                  trailing: m.estado == 'aceptada' ? const Icon(Icons.chevron_right) : null,
-                  onTap: m.estado == 'aceptada'
-                      ? () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MentoriaChatScreen(mentoria: m)))
+              final aceptada = m.estado == 'aceptada';
+              return FadeSlideIn(
+                key: ValueKey(m.id),
+                index: i,
+                child: RumboCard(
+                  padding: const EdgeInsets.all(15),
+                  onTap: aceptada
+                      ? () => Navigator.of(context).push(
+                            RumboPageRoute(builder: (_) => MentoriaChatScreen(mentoria: m)),
+                          )
                       : null,
+                  child: Row(
+                    children: [
+                      EstadoMentoriaIcono(estado: m.estado),
+                      const SizedBox(width: 13),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(m.mentorNombre, style: Theme.of(context).textTheme.titleSmall),
+                            const SizedBox(height: 3),
+                            Text(
+                              etiquetaEstadoMentoria(m.estado),
+                              style: const TextStyle(color: RumboColors.textLow, fontSize: 12.8),
+                            ),
+                            const SizedBox(height: 5),
+                            MetaRow(
+                              icono: Icons.send_outlined,
+                              texto: 'Enviada ${haceCuantoIso(m.fechaSolicitud)}',
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (aceptada)
+                        const Icon(Icons.chat_bubble_outline_rounded, size: 19, color: RumboColors.success),
+                    ],
+                  ),
                 ),
               );
             },
@@ -273,7 +433,11 @@ class _MisMentoriasTabState extends State<_MisMentoriasTab> {
   }
 }
 
-String _estadoLabel(String estado) {
+// ---------------------------------------------------------------------------
+// Estado de una mentoría (compartido con la pantalla del mentor)
+// ---------------------------------------------------------------------------
+
+String etiquetaEstadoMentoria(String estado) {
   switch (estado) {
     case 'aceptada':
       return 'Aceptada — tocá para chatear';
@@ -284,20 +448,35 @@ String _estadoLabel(String estado) {
   }
 }
 
-class _EstadoIcon extends StatelessWidget {
+class EstadoMentoriaIcono extends StatelessWidget {
   final String estado;
 
-  const _EstadoIcon({required this.estado});
+  const EstadoMentoriaIcono({super.key, required this.estado});
 
   @override
   Widget build(BuildContext context) {
+    late final Color color;
+    late final IconData icono;
     switch (estado) {
       case 'aceptada':
-        return const CircleAvatar(backgroundColor: Color(0xFFECFDF5), child: Icon(Icons.check, color: Color(0xFF059669)));
+        color = RumboColors.success;
+        icono = Icons.check_rounded;
       case 'rechazada':
-        return const CircleAvatar(backgroundColor: Color(0xFFFEF2F2), child: Icon(Icons.close, color: Color(0xFFDC2626)));
+        color = RumboColors.danger;
+        icono = Icons.close_rounded;
       default:
-        return const CircleAvatar(backgroundColor: Color(0xFFFFFBEB), child: Icon(Icons.hourglass_empty, color: Color(0xFFB45309)));
+        color = RumboColors.warning;
+        icono = Icons.hourglass_empty_rounded;
     }
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.13),
+        shape: BoxShape.circle,
+        border: Border.all(color: color.withValues(alpha: 0.32)),
+      ),
+      child: Icon(icono, color: color, size: 19),
+    );
   }
 }

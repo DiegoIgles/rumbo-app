@@ -4,7 +4,11 @@ import 'package:provider/provider.dart';
 import '../models/mentoria.dart';
 import '../services/api_client.dart';
 import '../services/auth_controller.dart';
+import '../theme.dart';
+import '../utils/formato.dart';
+import '../widgets/ui_kit.dart';
 import 'mentoria_chat_screen.dart';
+import 'mentoring_screen.dart' show EstadoMentoriaIcono;
 
 class MentorRequestsScreen extends StatefulWidget {
   const MentorRequestsScreen({super.key});
@@ -37,7 +41,11 @@ class _MentorRequestsScreenState extends State<MentorRequestsScreen> {
     } on ApiException catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No se pudo responder la solicitud')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo responder la solicitud')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _respondiendo.remove(m.id));
     }
@@ -46,146 +54,179 @@ class _MentorRequestsScreenState extends State<MentorRequestsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Solicitudes de mentoría')),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          _reload();
-          await _future;
-        },
-        child: FutureBuilder<List<Mentoria>>(
-          future: _future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError) {
-              return ListView(
-                children: [
-                  const SizedBox(height: 60),
-                  Center(
-                    child: Text(
-                      snapshot.error is ApiException ? (snapshot.error as ApiException).message : 'Error al cargar solicitudes',
-                    ),
-                  ),
-                ],
-              );
-            }
-            final mentorias = snapshot.data ?? [];
-            if (mentorias.isEmpty) {
-              return ListView(
-                children: const [
-                  SizedBox(height: 60),
-                  Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 32),
-                      child: Text(
-                        'Todavía no recibiste solicitudes. Completá tu perfil de mentor para que los jóvenes te encuentren.',
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            }
-            return ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: mentorias.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 10),
-              itemBuilder: (context, i) {
-                final m = mentorias[i];
-                final respondiendo = _respondiendo.contains(m.id);
-                return Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            _EstadoBadge(estado: m.estado),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(m.jovenNombre, style: const TextStyle(fontWeight: FontWeight.w700)),
-                            ),
-                          ],
-                        ),
-                        if (m.estado == 'pendiente') ...[
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: OutlinedButton(
-                                  onPressed: respondiendo ? null : () => _responder(m, false),
-                                  child: const Text('Rechazar'),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: ElevatedButton(
-                                  onPressed: respondiendo ? null : () => _responder(m, true),
-                                  child: respondiendo
-                                      ? const SizedBox(
-                                          height: 16,
-                                          width: 16,
-                                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                        )
-                                      : const Text('Aceptar'),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                        if (m.estado == 'aceptada') ...[
-                          const SizedBox(height: 10),
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton.icon(
-                              icon: const Icon(Icons.chat_bubble_outline, size: 18),
-                              label: const Text('Abrir chat'),
-                              onPressed: () =>
-                                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => MentoriaChatScreen(mentoria: m))),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
+      appBar: AppBar(title: const Text('Solicitudes')),
+      body: SafeArea(
+        top: false,
+        child: RumboRefresh(
+          onRefresh: () async {
+            _reload();
+            await _future.catchError((_) => <Mentoria>[]);
+          },
+          child: FutureBuilder<List<Mentoria>>(
+            future: _future,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const SkeletonList(cantidad: 3);
+              }
+              if (snapshot.hasError) {
+                final msg = snapshot.error is ApiException
+                    ? (snapshot.error as ApiException).message
+                    : 'No pudimos cargar las solicitudes';
+                return ScrollableStatusView(
+                  view: StatusView(
+                    icono: Icons.cloud_off_rounded,
+                    titulo: 'No se pudo conectar',
+                    detalle: msg,
+                    textoAccion: 'Reintentar',
+                    onAccion: _reload,
+                    esError: true,
                   ),
                 );
-              },
-            );
-          },
+              }
+              final mentorias = snapshot.data ?? [];
+              if (mentorias.isEmpty) {
+                return const ScrollableStatusView(
+                  view: StatusView(
+                    icono: Icons.inbox_outlined,
+                    titulo: 'Sin solicitudes todavía',
+                    detalle: 'Completá tu perfil de mentor para que los jóvenes te encuentren.',
+                  ),
+                );
+              }
+
+              // Las pendientes primero: son las únicas que piden una acción.
+              final ordenadas = [...mentorias]..sort((a, b) {
+                  if (a.estado == b.estado) return 0;
+                  if (a.estado == 'pendiente') return -1;
+                  if (b.estado == 'pendiente') return 1;
+                  return 0;
+                });
+              final pendientes = ordenadas.where((m) => m.estado == 'pendiente').length;
+
+              return ListView.separated(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+                itemCount: ordenadas.length + 1,
+                separatorBuilder: (_, _) => const SizedBox(height: 10),
+                itemBuilder: (context, i) {
+                  if (i == 0) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Text(
+                        pendientes == 0
+                            ? 'No tenés solicitudes pendientes'
+                            : pendientes == 1
+                                ? '1 solicitud esperando tu respuesta'
+                                : '$pendientes solicitudes esperando tu respuesta',
+                        style: const TextStyle(color: RumboColors.textLow, fontSize: 12.5),
+                      ),
+                    );
+                  }
+                  final m = ordenadas[i - 1];
+                  return FadeSlideIn(
+                    key: ValueKey(m.id),
+                    index: i - 1,
+                    child: _SolicitudCard(
+                      mentoria: m,
+                      respondiendo: _respondiendo.contains(m.id),
+                      onResponder: (aceptar) => _responder(m, aceptar),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
         ),
       ),
     );
   }
 }
 
-class _EstadoBadge extends StatelessWidget {
-  final String estado;
+class _SolicitudCard extends StatelessWidget {
+  final Mentoria mentoria;
+  final bool respondiendo;
+  final ValueChanged<bool> onResponder;
 
-  const _EstadoBadge({required this.estado});
+  const _SolicitudCard({
+    required this.mentoria,
+    required this.respondiendo,
+    required this.onResponder,
+  });
 
   @override
   Widget build(BuildContext context) {
-    late Color bg;
-    late Color fg;
-    late IconData icon;
-    switch (estado) {
-      case 'aceptada':
-        bg = const Color(0xFFECFDF5);
-        fg = const Color(0xFF059669);
-        icon = Icons.check;
-        break;
-      case 'rechazada':
-        bg = const Color(0xFFFEF2F2);
-        fg = const Color(0xFFDC2626);
-        icon = Icons.close;
-        break;
-      default:
-        bg = const Color(0xFFFFFBEB);
-        fg = const Color(0xFFB45309);
-        icon = Icons.hourglass_empty;
-    }
-    return CircleAvatar(radius: 16, backgroundColor: bg, child: Icon(icon, color: fg, size: 16));
+    final m = mentoria;
+    final pendiente = m.estado == 'pendiente';
+
+    return RumboCard(
+      padding: const EdgeInsets.all(15),
+      borderColor: pendiente ? RumboColors.warning.withValues(alpha: 0.3) : null,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              EstadoMentoriaIcono(estado: m.estado),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(m.jovenNombre, style: Theme.of(context).textTheme.titleSmall),
+                    const SizedBox(height: 4),
+                    MetaRow(
+                      icono: Icons.schedule_rounded,
+                      texto: 'Solicitó ${haceCuantoIso(m.fechaSolicitud)}',
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (pendiente) ...[
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: respondiendo ? null : () => onResponder(false),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: RumboColors.danger,
+                      side: BorderSide(color: RumboColors.danger.withValues(alpha: 0.4)),
+                    ),
+                    child: const Text('Rechazar'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: respondiendo ? null : () => onResponder(true),
+                    child: respondiendo
+                        ? const SizedBox(
+                            height: 16,
+                            width: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white70),
+                          )
+                        : const Text('Aceptar'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (m.estado == 'aceptada') ...[
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.chat_bubble_outline_rounded, size: 17),
+                label: const Text('Abrir chat'),
+                onPressed: () => Navigator.of(context).push(
+                  RumboPageRoute(builder: (_) => MentoriaChatScreen(mentoria: m)),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }

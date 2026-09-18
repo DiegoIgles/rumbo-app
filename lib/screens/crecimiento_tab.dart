@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../services/auth_controller.dart';
 import '../theme.dart';
+import '../widgets/ui_kit.dart';
 import 'badges_screen.dart';
 import 'cv_screen.dart';
 import 'interview_screen.dart';
@@ -21,90 +22,208 @@ class CrecimientoTab extends StatelessWidget {
 
     final items = <_MenuItem>[
       _MenuItem(
-        icon: Icons.description_outlined,
+        icono: Icons.description_outlined,
         titulo: 'Revisión de CV con IA',
         subtitulo: 'Subí tu CV o pitch y recibí feedback al instante.',
+        color: RumboColors.crimsonBright,
         builder: (_) => const CvScreen(),
       ),
       _MenuItem(
-        icon: Icons.forum_outlined,
+        icono: Icons.videocam_outlined,
         titulo: 'Práctica de entrevistas',
-        subtitulo: 'Simulá una entrevista o negociación con un cliente.',
+        subtitulo: 'Simulá una entrevista o una negociación con un cliente.',
+        color: RumboColors.navyBright,
+        destacado: true,
         builder: (_) => const InterviewScreen(),
       ),
       _MenuItem(
-        icon: Icons.emoji_events_outlined,
+        icono: Icons.emoji_events_outlined,
         titulo: 'Insignias',
         subtitulo: 'Mirá los logros que fuiste desbloqueando.',
+        color: RumboColors.warning,
         builder: (_) => const BadgesScreen(),
       ),
       if (esMentor) ...[
         _MenuItem(
-          icon: Icons.badge_outlined,
+          icono: Icons.badge_outlined,
           titulo: 'Mi perfil de mentor',
-          subtitulo: 'Contá tu área de expertise y disponibilidad para que te encuentren.',
+          subtitulo: 'Contá tu expertise y disponibilidad para que te encuentren.',
+          color: RumboColors.success,
           builder: (_) => const MentorProfileScreen(),
         ),
         _MenuItem(
-          icon: Icons.inbox_outlined,
+          icono: Icons.inbox_outlined,
           titulo: 'Solicitudes de mentoría',
           subtitulo: 'Revisá los pedidos que te llegaron y chateá con quien aceptes.',
+          color: RumboColors.crimsonBright,
           builder: (_) => const MentorRequestsScreen(),
         ),
         _MenuItem(
-          icon: Icons.groups_outlined,
+          icono: Icons.groups_outlined,
           titulo: 'Mentoría grupal',
-          subtitulo: 'Publicá sesiones grupales con cupo limitado y link de Meet.',
+          subtitulo: 'Publicá sesiones grupales con cupo y link de Meet.',
+          color: RumboColors.navyBright,
           builder: (_) => const MentoriaGrupalMentorScreen(),
         ),
       ] else ...[
         _MenuItem(
-          icon: Icons.people_outline,
+          icono: Icons.people_outline,
           titulo: 'Mentoría',
           subtitulo: 'Conectá con mentores y pedí acompañamiento.',
+          color: RumboColors.success,
           builder: (_) => const MentoringScreen(),
         ),
         _MenuItem(
-          icon: Icons.groups_outlined,
+          icono: Icons.groups_outlined,
           titulo: 'Mentoría grupal',
           subtitulo: 'Unite a sesiones grupales en vivo con cupo limitado.',
+          color: RumboColors.navyBright,
           builder: (_) => const MentoriaGrupalScreen(),
         ),
       ],
     ];
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Crecimiento')),
-      body: ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: items.length,
-        separatorBuilder: (_, _) => const SizedBox(height: 12),
-        itemBuilder: (context, i) {
-          final item = items[i];
-          return Card(
-            child: ListTile(
-              contentPadding: const EdgeInsets.all(12),
-              leading: CircleAvatar(
-                backgroundColor: rumboPrimary.withValues(alpha: 0.12),
-                child: Icon(item.icon, color: rumboPrimary),
+      body: SafeArea(
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 110),
+          children: [
+            FadeSlideIn(
+              index: 0,
+              child: BrandHeader(
+                icono: Icons.rocket_launch_outlined,
+                titulo: 'Crecimiento',
+                subtitulo: esMentor
+                    ? 'Tus herramientas para acompañar a quienes empiezan.'
+                    : 'Practicá, mejorá tu CV y conseguí acompañamiento.',
               ),
-              title: Text(item.titulo, style: const TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: Text(item.subtitulo),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: item.builder)),
             ),
-          );
-        },
+            const SizedBox(height: 22),
+            for (var i = 0; i < items.length; i++) ...[
+              if (i > 0) const SizedBox(height: 12),
+              FadeSlideIn(index: i + 1, child: _TarjetaMenu(item: items[i])),
+            ],
+          ],
+        ),
       ),
     );
   }
 }
 
 class _MenuItem {
-  final IconData icon;
+  final IconData icono;
   final String titulo;
   final String subtitulo;
+  final Color color;
   final WidgetBuilder builder;
 
-  _MenuItem({required this.icon, required this.titulo, required this.subtitulo, required this.builder});
+  /// La tarjeta destacada usa el degradado de marca en vez del fondo plano:
+  /// es la acción que más queremos que la gente pruebe.
+  final bool destacado;
+
+  _MenuItem({
+    required this.icono,
+    required this.titulo,
+    required this.subtitulo,
+    required this.color,
+    required this.builder,
+    this.destacado = false,
+  });
+}
+
+class _TarjetaMenu extends StatelessWidget {
+  final _MenuItem item;
+
+  const _TarjetaMenu({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    void onTap() => Navigator.of(context).push(RumboPageRoute(builder: item.builder));
+
+    if (item.destacado) {
+      return PressableScale(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            gradient: RumboColors.brandGradient,
+            borderRadius: RumboRadii.card,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(RumboRadii.md),
+                ),
+                child: Icon(item.icono, color: Colors.white, size: 23),
+              ),
+              const SizedBox(width: 15),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.titulo,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      item.subtitulo,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.85),
+                        fontSize: 12.8,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: Colors.white70),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return RumboCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: item.color.withValues(alpha: 0.13),
+              borderRadius: BorderRadius.circular(RumboRadii.md),
+            ),
+            child: Icon(item.icono, color: item.color, size: 21),
+          ),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(item.titulo, style: Theme.of(context).textTheme.titleSmall),
+                const SizedBox(height: 3),
+                Text(
+                  item.subtitulo,
+                  style: const TextStyle(color: RumboColors.textLow, fontSize: 12.8, height: 1.4),
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right_rounded, color: RumboColors.textLow),
+        ],
+      ),
+    );
+  }
 }

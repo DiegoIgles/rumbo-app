@@ -5,6 +5,9 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/mentoria_grupal.dart';
 import '../services/api_client.dart';
 import '../services/auth_controller.dart';
+import '../theme.dart';
+import '../utils/formato.dart';
+import '../widgets/ui_kit.dart';
 
 class MentoriaGrupalScreen extends StatefulWidget {
   const MentoriaGrupalScreen({super.key});
@@ -35,12 +38,18 @@ class _MentoriaGrupalScreenState extends State<MentoriaGrupalScreen> {
       await context.read<AuthController>().api.unirseMentoriaGrupal(g.id);
       _reload();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('¡Te uniste a "${g.titulo}"!')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('¡Te uniste a "${g.titulo}"!')),
+        );
       }
     } on ApiException catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No se pudo unir a la mentoría')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo unir a la mentoría')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _uniendose.remove(g.id));
     }
@@ -50,52 +59,60 @@ class _MentoriaGrupalScreenState extends State<MentoriaGrupalScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Mentoría grupal')),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          _reload();
-          await _future;
-        },
-        child: FutureBuilder<List<MentoriaGrupal>>(
-          future: _future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError) {
-              return ListView(
-                children: [
-                  const SizedBox(height: 60),
-                  Center(
-                    child: Text(
-                      snapshot.error is ApiException ? (snapshot.error as ApiException).message : 'Error al cargar las mentorías grupales',
-                    ),
-                  ),
-                ],
-              );
-            }
-            final grupales = snapshot.data ?? [];
-            if (grupales.isEmpty) {
-              return ListView(
-                children: const [
-                  SizedBox(height: 60),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 32),
-                    child: Text('Todavía no hay mentorías grupales programadas.', textAlign: TextAlign.center),
-                  ),
-                ],
-              );
-            }
-            return ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: grupales.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 12),
-              itemBuilder: (context, i) => _GrupalCard(
-                grupal: grupales[i],
-                uniendose: _uniendose.contains(grupales[i].id),
-                onUnirse: () => _unirse(grupales[i]),
-              ),
-            );
+      body: SafeArea(
+        top: false,
+        child: RumboRefresh(
+          onRefresh: () async {
+            _reload();
+            await _future.catchError((_) => <MentoriaGrupal>[]);
           },
+          child: FutureBuilder<List<MentoriaGrupal>>(
+            future: _future,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const SkeletonList(cantidad: 3);
+              }
+              if (snapshot.hasError) {
+                final msg = snapshot.error is ApiException
+                    ? (snapshot.error as ApiException).message
+                    : 'No pudimos cargar las sesiones';
+                return ScrollableStatusView(
+                  view: StatusView(
+                    icono: Icons.cloud_off_rounded,
+                    titulo: 'No se pudo conectar',
+                    detalle: msg,
+                    textoAccion: 'Reintentar',
+                    onAccion: _reload,
+                    esError: true,
+                  ),
+                );
+              }
+              final grupales = snapshot.data ?? [];
+              if (grupales.isEmpty) {
+                return const ScrollableStatusView(
+                  view: StatusView(
+                    icono: Icons.groups_outlined,
+                    titulo: 'Sin sesiones programadas',
+                    detalle: 'Todavía no hay mentorías grupales publicadas. Volvé a mirar pronto.',
+                  ),
+                );
+              }
+              return ListView.separated(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+                itemCount: grupales.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 12),
+                itemBuilder: (context, i) => FadeSlideIn(
+                  key: ValueKey(grupales[i].id),
+                  index: i,
+                  child: _GrupalCard(
+                    grupal: grupales[i],
+                    uniendose: _uniendose.contains(grupales[i].id),
+                    onUnirse: () => _unirse(grupales[i]),
+                  ),
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
@@ -112,81 +129,115 @@ class _GrupalCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final g = grupal;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(g.titulo, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-            const SizedBox(height: 4),
-            Text('Con ${g.mentorNombre}', style: const TextStyle(color: Colors.black54, fontSize: 13)),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                const Icon(Icons.schedule, size: 15, color: Colors.black45),
-                const SizedBox(width: 6),
-                Text(formatearFechaHora(g.fechaHora), style: const TextStyle(fontSize: 12.5, color: Colors.black54)),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Icon(Icons.people_outline, size: 15, color: g.lleno ? const Color(0xFFDC2626) : Colors.black45),
-                const SizedBox(width: 6),
-                Text(
-                  g.lleno ? 'Cupo lleno (${g.inscritos}/${g.cupoMaximo})' : '${g.cuposDisponibles} cupos disponibles de ${g.cupoMaximo}',
-                  style: TextStyle(fontSize: 12.5, color: g.lleno ? const Color(0xFFDC2626) : Colors.black54),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(g.descripcion),
-            const SizedBox(height: 12),
-            if (g.yaInscrito) ...[
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => launchUrl(Uri.parse(g.meetLink), mode: LaunchMode.externalApplication),
-                  icon: const Icon(Icons.videocam_outlined),
-                  label: const Text('Abrir Meet'),
-                ),
+    final fraccion = g.cupoMaximo == 0 ? 0.0 : (g.inscritos / g.cupoMaximo).clamp(0.0, 1.0);
+    final colorCupo = g.lleno ? RumboColors.danger : RumboColors.success;
+
+    return RumboCard(
+      borderColor: g.yaInscrito ? RumboColors.success.withValues(alpha: 0.35) : null,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(g.titulo, style: Theme.of(context).textTheme.titleMedium),
               ),
-            ] else
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: (g.lleno || uniendose) ? null : onUnirse,
-                  child: uniendose
-                      ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : Text(g.lleno ? 'Cupo lleno' : 'Unirme'),
-                ),
+              if (g.yaInscrito) ...[
+                const SizedBox(width: 10),
+                const RumboTag(texto: 'Anotado', color: RumboColors.success, icono: Icons.check_rounded),
+              ],
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Con ${g.mentorNombre}',
+            style: const TextStyle(color: RumboColors.textLow, fontSize: 13),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 16,
+            runSpacing: 8,
+            children: [
+              MetaRow(
+                icono: Icons.event_rounded,
+                texto: fechaHora(g.fechaHora),
+                color: RumboColors.navyBright,
               ),
-          ],
-        ),
+              MetaRow(
+                icono: Icons.people_outline_rounded,
+                texto: g.lleno
+                    ? 'Cupo lleno (${g.inscritos}/${g.cupoMaximo})'
+                    : '${g.cuposDisponibles} de ${g.cupoMaximo} libres',
+                color: colorCupo,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Barra de ocupación: comunica la urgencia mejor que el número solo.
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: fraccion),
+            duration: RumboMotion.slow,
+            curve: RumboMotion.decelerate,
+            builder: (context, v, _) => ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                value: v,
+                minHeight: 5,
+                backgroundColor: RumboColors.surfaceHigh,
+                valueColor: AlwaysStoppedAnimation(colorCupo),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            g.descripcion,
+            style: const TextStyle(color: RumboColors.textMid, fontSize: 13.5, height: 1.5),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: g.yaInscrito
+                ? OutlinedButton.icon(
+                    onPressed: () => _abrirMeet(context, g.meetLink),
+                    icon: const Icon(Icons.videocam_outlined, size: 18),
+                    label: const Text('Abrir Meet'),
+                  )
+                : ElevatedButton(
+                    onPressed: (g.lleno || uniendose) ? null : onUnirse,
+                    child: uniendose
+                        ? const SizedBox(
+                            height: 16,
+                            width: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white70),
+                          )
+                        : Text(g.lleno ? 'Cupo lleno' : 'Unirme'),
+                  ),
+          ),
+        ],
       ),
     );
   }
 }
 
-const _meses = [
-  'ene',
-  'feb',
-  'mar',
-  'abr',
-  'may',
-  'jun',
-  'jul',
-  'ago',
-  'sep',
-  'oct',
-  'nov',
-  'dic',
-];
-
-String formatearFechaHora(DateTime d) {
-  final local = d.toLocal();
-  final hora = local.hour.toString().padLeft(2, '0');
-  final min = local.minute.toString().padLeft(2, '0');
-  return '${local.day} ${_meses[local.month - 1]} · $hora:$min';
+/// Abre el link de Meet en el navegador/app externa y avisa si no se pudo.
+Future<void> _abrirMeet(BuildContext context, String link) async {
+  final uri = Uri.tryParse(link);
+  if (uri == null) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('El link de la sesión no es válido')),
+      );
+    }
+    return;
+  }
+  final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+  if (!ok && context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('No se pudo abrir el link de la sesión')),
+    );
+  }
 }
+
+/// Reexportado para la pantalla del mentor, que abre el mismo tipo de link.
+Future<void> abrirLinkMeet(BuildContext context, String link) => _abrirMeet(context, link);
